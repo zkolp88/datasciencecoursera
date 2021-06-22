@@ -1,0 +1,107 @@
+---
+title: "NYPDShootingIncident"
+author: "ZachKolp"
+date: "5/21/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+library(data.table)
+```
+
+## Read data into R and removing unwanted columns
+```{r}
+shoot<- read_csv("https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD")
+clean_data <- select(shoot, -c(INCIDENT_KEY, OCCUR_TIME, PRECINCT, JURISDICTION_CODE, LOCATION_DESC, STATISTICAL_MURDER_FLAG, X_COORD_CD, Y_COORD_CD, Latitude, Longitude, Lon_Lat))
+clean_data=clean_data[1:100,]
+```
+
+
+# Create additional columns with inputs equivalent to character length of INCIDENT_KEY
+```{r}
+CASES <- c(1:100)
+clean_data$CASES <- CASES
+clean_data
+```
+
+## Convert character variables into factor and date formats
+
+```{r}
+columns<-c(2:8) 
+clean_data[,columns] <- lapply(clean_data[,columns], factor)
+date_cols <- c("OCCUR_DATE")
+mutate(clean_data, date=mdy(OCCUR_DATE))
+str(clean_data)
+```
+
+## Filter out all victim sex and victim age groups entered as "other" or which is blank
+```{r}
+tidy_data <- clean_data %>%
+    filter(as.numeric(VIC_SEX)<3, as.numeric(VIC_AGE_GROUP)<6)
+```
+
+## Graph the increase of cases per boro over time
+```{r}
+tidy_data %>%
+    ggplot(aes(x=OCCUR_DATE, y=CASES, group=BORO)) +
+    geom_line(aes(linetype=BORO, color="BORO")) +
+    geom_point(aes(color="BORO")) +
+    scale_y_log10() +
+    theme(legend.position="bottom",
+      axis.text.x = element_text(angle=90)) +
+    labs(title = "NYPD Shooting Incidents")
+```
+
+```{r}
+tidy_data %>%
+    ggplot(aes(x=OCCUR_DATE, y=CASES, group=BORO)) +
+    geom_line(aes(linetype=BORO, color=BORO)) +
+    theme(legend.position="bottom")+
+    labs(title = "NYPD Shooting Incidents")
+```
+
+
+## Graph the increase of cases per victim race over time
+```{r}
+tidy_data %>%
+    ggplot(aes(x=OCCUR_DATE, y=CASES, group=VIC_RACE)) +
+    geom_line(aes(linetype=VIC_RACE, color=VIC_RACE)) +
+    geom_point(aes(color=VIC_RACE)) +
+    scale_y_log10() +
+    theme(legend.position="bottom",
+      axis.text.x = element_text(angle=90)) +
+    labs(title = "NYPD Shooting Incidents")
+```
+    
+**Analysis**
+What did the data show?
+
+The analysis illustrates Staten Island featuring the lowest occurence of shooting incident data among the boros in a pattern dissimilar to other to the other boros peaks and troughs of shooting incidents. While not all other boros share all peaks and troughs, the Bronx, Manhattan, Brooklyn and Queens do share some (although not all) peaks and or troughs. The data also details less shooting incident data available for Manhattan, Staten Island, and Queens. The analysis furthermore illustrates greater volatility among the Black victims overtime than other races. 
+
+What additional areas should be investigated as a result of this?
+
+A thorough investigation into the shooting data itself should first be confirmed to rule out any anomolies in the analysis specifically regarding data with frequent volatility and to ensure all available data is captured (e.g. for boros such as Manhattan, Staten Island, and Queens) Secondly, a better understanding needs to be provided for why Staten Island features such dissimilar shooting incident data relative to its neighbors. What differences exist in its ecosystem relative to the other boros (policy, finance, culture, infrastructure, talent, support systems, etc.)? Furthermore, for shared peaks and troughs of the other boro's shooting incident data, what could explain any parallels between boros? Lastly, per the biases listed below the third graph should be re-designed to illustrate the actual victims by race over time (not the increase in victims by race over time).
+
+## Model of how the neighborhoods of shooting incidents are predicted by the race of shooting victims
+mod <- lm(as.numeric(BORO) ~ as.numeric(VIC_RACE), data=clean_data)
+
+    
+**Conclusion**
+
+Biases: 
+
+The way the third graph (time series of victim by race) itself is presented poses a bias. Here, as the vast majority of victims throughout the data set are Black, it appears through this illustration that other races are actually more often victims. However, this graph actually shows the increase of victims by race over time not the actual amount of victims over time. As a result, the graph enables a biased oversight when first viewing this data. 
+
+As I believe younger men are more likely to be killed in violence than other age groups; I chose not analyze this. Instead, I focused on areas of crime (Boros) rather than these variables as my understanding of New York City Boros is limited and therefore I hold less bias here. 
+    
+
+R version 4.1.0 (2021-05-18) -- "Camp Pontanezen"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+**Alternative Local CSV Read**
+original_data <- read.table("NYPD_Shooting_Incident_Data__Historic_.csv", header= TRUE, sep=",", stringsAsFactors = FALSE)
+
